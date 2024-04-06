@@ -1,0 +1,6 @@
+mediapipe
+xgboost
+scikit-learn
+pyserial
+pandas
+seaborn
