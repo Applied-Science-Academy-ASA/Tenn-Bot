@@ -33,7 +33,7 @@ def Map(value):
 #v############ CONVERT #############
 
 def class2grade(theClass):
-    print(theClass)
+    #print(theClass)
     theClass = theClass.split("_")[1]
     if theClass == "1": return 1
     elif theClass == "0": return 0
@@ -92,6 +92,7 @@ def json2csv(filePath, theType ="reg", corBool = False):
     for i, key in enumerate(data.keys()):
         grade = class2grade(key)
         for value, feature in zip(data[key].split(' '), DF.keys()):
+            if value == "inf": value = 0
             DF[feature].append(float(value))
         DF["grade"].append(grade)
     df = pd.DataFrame(DF)

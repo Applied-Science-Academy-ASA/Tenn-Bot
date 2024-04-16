@@ -59,6 +59,7 @@ framescaptured= 0
 capture = False
 startlockcoord = None
 afterlockcoord = None
+starttime = 0
 
 def detectPose(image_pose, pose, draw=False, display=False):
     global launchcount, antilaunch, lantilaunch, block, lockendtime, lockstarttime, personlock, lock, xgb, mtd, framescaptured, capture, startlockcoord
@@ -93,15 +94,17 @@ def detectPose(image_pose, pose, draw=False, display=False):
         # New mediapipe syntax: multi pose detection
         with PoseLandmarker.create_from_options(options) as landmarker:
             pose_landmarks = landmarker.detect(mp_image)
-            landmark_subset = landmark_pb2.NormalizedLandmarkList()
+            
             
             person_count = len(pose_landmarks.pose_landmarks)
             usefulcoords = []
             persondecided = False
             for i in range (person_count):
                 addusefulcoords = []
+                landmark_subset = landmark_pb2.NormalizedLandmarkList()
                 landmark_subset.landmark.extend(
                     [landmark_pb2.NormalizedLandmark(x=landmark.x, y=landmark.y, z=landmark.z, visibility=landmark.visibility) for landmark in pose_landmarks.pose_landmarks[i]])
+                
                 coords = mp_drawing.draw_landmarks(
                             image=original_image,
                             landmark_list=landmark_subset,
@@ -157,7 +160,7 @@ def detectPose(image_pose, pose, draw=False, display=False):
             #Deciding Single or XGB mode
             if len(usefulcoords) > 1:
                 for i, k in enumerate(usefulcoords):
-                    if k[17] <= 30 and k[18] <= 30:
+                    if k[17] <= 50 and k[18] <= 50:
                         if not lock and not persondecided:
                             lockstarttime = time.time()
                             lock = True
@@ -172,7 +175,9 @@ def detectPose(image_pose, pose, draw=False, display=False):
                         personindex = i
                 
                 if capture == True:
-                    if framescaptured < 10 * len(usefulcoords):
+                
+                    if framescaptured < 12 * len(usefulcoords):
+                        print("CAPTURING")
                         for i, k in enumerate(usefulcoords):
                             coordmiddlex = int((k[0] + k[2])/2)
                             coordmiddley = int((k[3] + k[7])/2)
@@ -190,23 +195,26 @@ def detectPose(image_pose, pose, draw=False, display=False):
                             else:
                                 mtd.add_features_mask(f"{framescaptured}_0", cmiddle, cside, mask)
                             framescaptured += 1
+                        #print("DONE CAPTURE IN :", time.time() - lockstarttime)
                             
-                    elif framescaptured >= 10:
+                    elif framescaptured >= 12:
+                        print("TRAINING")
                         personlock = True
                         mtd.save_json()
                         json2csv("metadata.json")
                         xgb = XGB(data_path = "metadata_reg.csv")
                         xgb.train(model_path="model.pkl", data_path = "metadata_reg.csv")
                         capture = False
+                        print("DONE TOTAL IN :", time.time() - lockstarttime)
 
                 if personvalue != 0: 
-                    if personvalue[17] <= 30 and personvalue[18] <= 30 and lock:
+                    if personvalue[17] <= 50 and personvalue[18] <= 50 and lock:
                         lockendtime = time.time()
                         if (lockendtime - lockstarttime) > 3:
                             capture = True
                             startlockcoord = personvalue[0]
-                    elif personvalue[17] > 30 or personvalue[18] > 30 and lock:
-                        if (lockendtime - lockstarttime) > 5:
+                    elif personvalue[17] > 50 or personvalue[18] > 50 and lock:
+                        if (lockendtime - lockstarttime) > 3:
                             personlock = False
                             lock = False
                             lockstarttime = 0
